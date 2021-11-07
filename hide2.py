@@ -1,141 +1,128 @@
-# Python program implementing Image Steganography
-
-# PIL module is used to extract
-# pixels of image and modify it
+import cv2
+import sys
+import numpy as np
 from PIL import Image
+n=1
+def binary(data):
+    #convert data to binary format as string
+    if isinstance(data,str):
+        return ''.join([format(ord(i), "08b" ) for i in data])
 
-
-# Convert encoding data into 8-bit binary
-# form using ASCII value of characters
-def genData(data):
-    # list of binary codes
-    # of given data
-    newd = []
-
-    for i in data:
-        newd.append(format(ord(i), '08b'))
-    return newd
-
-
-# Pixels are modified according to the
-# 8-bit binary data and finally returned
-def modPix(pix, data):
-    datalist = genData(data)
-    lendata = len(datalist)
-    imdata = iter(pix)
-
-    for i in range(lendata):
-
-        # Extracting 3 pixels at a time
-        pix = [value for value in imdata.__next__()[:3] +
-               imdata.__next__()[:3] +
-               imdata.__next__()[:3]]
-
-        # Pixel value should be made
-        # odd for 1 and even for 0
-        for j in range(0, 8):
-            if (datalist[i][j] == '0' and pix[j] % 2 != 0):
-                pix[j] -= 1
-
-            elif (datalist[i][j] == '1' and pix[j] % 2 == 0):
-                if (pix[j] != 0):
-                    pix[j] -= 1
-                else:
-                    pix[j] += 1
-                # pix[j] -= 1
-
-        # Eighth pixel of every set tells
-        # whether to stop ot read further.
-        # 0 means keep reading; 1 means thec
-        # message is over.
-        if (i == lendata - 1):
-            if (pix[-1] % 2 == 0):
-                if (pix[-1] != 0):
-                    pix[-1] -= 1
-                else:
-                    pix[-1] += 1
-
-        else:
-            if (pix[-1] % 2 != 0):
-                pix[-1] -= 1
-
-        pix = tuple(pix)
-        yield pix[0:3]
-        yield pix[3:6]
-        yield pix[6:9]
-
-
-def encode_enc(newimg, data):
-    w = newimg.size[0]
-    (x, y) = (0, 0)
-
-    for pixel in modPix(newimg.getdata(), data):
-
-        # Putting modified pixels in the new image
-        newimg.putpixel((x, y), pixel)
-        if (x == w - 1):
-            x = 0
-            y += 1
-        else:
-            x += 1
-
-
-# Encode data into image
-def encode():
-    img = input("Enter image name(with extension) : ")
-    image = Image.open(img, 'r')
-
-    data = input("Enter data to be encoded : ")
-    if (len(data) == 0):
-        raise ValueError('Data is empty')
-
-    newimg = image.copy()
-    encode_enc(newimg, data)
-
-    new_img_name = input("Enter the name of new image(with extension) : ")
-    newimg.save(new_img_name, str(new_img_name.split(".")[1].upper()))
-
-
-# Decode the data in the image
-def decode():
-    img = input("Enter image name(with extension) : ")
-    image = Image.open(img, 'r')
-
-    data = ''
-    imgdata = iter(image.getdata())
-
-    while (True):
-        pixels = [value for value in imgdata.__next__()[:3] +
-                  imgdata.__next__()[:3] +
-                  imgdata.__next__()[:3]]
-
-        # string of binary data
-        binstr = ''
-
-        for i in pixels[:8]:
-            if (i % 2 == 0):
-                binstr += '0'
-            else:
-                binstr += '1'
-
-        data += chr(int(binstr, 2))
-        if (pixels[-1] % 2 != 0):
-            return data
-
-
-# Main Function
-def main():
-    a = int(input(":: Welcome to Steganography ::\n"
-                  "1. Encode\n2. Decode\n"))
-    if (a == 1):
-        encode()
-
-    elif (a == 2):
-        print("Decoded Word :  " + decode())
+    elif isinstance(data, bytes) or isinstance(data, np.ndarray):
+        return [format(i, "08b") for i in data]
+    elif isinstance(data,int) or isinstance(data, np.uint8):
+        return format(data, "08b")
     else:
-        raise Exception("Enter correct input")
+        raise TypeError("Type not supported. ")
 
 
-# Driver Code
-if __name__ == '__main__':
-    main()
+def encode_img(img_name, secret_msg):
+    #read image
+    # img = Image.open(img_name, 'r')
+    imag=cv2.imread(img_name)
+    # img = cv2.imread(sys.argv[1])
+    #max byte to encode
+    # array = np.array(list(img.getdata()))
+    # global n
+    # if img.mode == 'RGB':
+    #     n = 3
+    # elif img.mode == 'RGBA':
+    #     n = 4
+    #
+    # n_byte = array.size//n
+
+    n_byte = imag.shape[0] * imag.shape[1] * 3 // 8
+
+    print("[*] Maximum bytes to encode: ",n_byte)
+    if len(secret_msg)>n_byte:
+        raise ValueError("!!!Insufficient bytes. Need BIG image or SMALL data")
+    print("[*] Encoding data...")
+    #stopping criteria
+    secret_msg+="===="
+    data_ind=0;
+    #convert data to binary
+    bin_sec_msg= binary(secret_msg)
+    #size of data to hide
+    data_len=len(bin_sec_msg)
+
+    for row in imag:
+        for pixel in row:
+            #convert rgb to binary
+            r,g,b = binary(pixel)
+            if data_ind<data_len:
+                pixel[0]=int(r[:1] + bin_sec_msg[data_ind], 2)
+                data_ind+=1
+            if data_ind < data_len:
+                pixel[1] = int(g[:-1] + bin_sec_msg[data_ind], 2)
+                data_ind += 1
+            if data_ind<data_len:
+                pixel[2]=int(b[:1] + bin_sec_msg[data_ind], 2)
+                data_ind+=1
+
+            if data_ind >=data_len:
+                break
+    return imag
+
+
+def decode_img(img_name):
+    print("Decoding....")
+    #read image
+    img=cv2.imread(img_name)
+    bin_data = ""
+    for row in img:
+        for pixel in row:
+            r,g,b=binary(pixel)
+            bin_data += r[-1]
+            bin_data += g[-1]
+            bin_data += b[-1]
+    #split by 8-bits
+    all_bytes= [bin_data[i:i+8] for i in range (0,len(bin_data), 8)]
+    # conver bits to characters
+    decoded_msg=""
+    for byte in all_bytes:
+        decoded_msg+= chr(int(byte,2))
+        if decoded_msg[-5:]=="====":
+            break
+    return decoded_msg[:-5]
+
+# def stego():
+#     print("---> Welcome to stego <---")
+#     print("1: Encode")
+#     print("2: Decode")
+#
+#     func=input()
+#
+#     if func=='1':
+#         print("Enter Source Image Path")
+#         src =input()
+#         print("Enter Message to Hide")
+#         msg=input()
+#         print("Enter Destination Image Path")
+#         dest=input()
+#         print("Encoding...")
+#         encoded_img = encode_img(src,msg)
+#         cv2.imwrite(dest, encoded_img())
+#
+#     elif func=='2':
+#         print("Enter Source Image Path")
+#         src = input()
+#         print("Decoding..")
+#         decoded_img = decode_img(src)
+#         print("Decoded image :   ", decoded_img)
+#     else:
+#         print("Error : Invalid Option Chosen")
+#
+# stego()
+
+
+if __name__ == "__main__":
+    input_image = r'C:\Users\ASUS\PycharmProjects\test\6.jpg'
+    output_image = 'encoded_image.jpg'
+    secret_data = "hlo"
+    # encode the data into the image
+    encoded_image = encode_img(img_name=input_image, secret_msg=secret_data)
+    # save the output image (encoded image)
+    cv2.imwrite(output_image, encoded_image)
+    # decode the secret data from the image
+    decoded_data = decode_img(output_image)
+    print("[+] Decoded data:", decoded_data)
