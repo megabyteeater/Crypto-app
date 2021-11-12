@@ -4,8 +4,8 @@ import numpy as np
 
 def Binary_convertor(msg):
     if type(msg) == str:
-        return ''.join([format(ord(i), "08b") for i in msg])
-    elif type(msg) == bytes or type(message) == np.ndarray:
+        return ''.join([ format(ord(i), "08b") for i in msg])
+    elif type(msg) == bytes or type(msg) == np.ndarray:
         return [format(i, "08b") for i in msg]
     elif type(msg) == int or type(msg) == np.uint8:
         return format(msg, "08b")
@@ -38,7 +38,7 @@ def hide_data(img, sec_msg):
                 # hide the data into least significant bit of red pixel
                 pixel[0] = int(r[:-1] + bin_sec_msg[index], 2)
                 index += 1
-            if data_index < data_len:
+            if index < data_len:
                 # hide the data into least significant bit of green pixel
                 pixel[1] = int(g[:-1] + bin_sec_msg[index], 2)
                 index += 1
@@ -96,7 +96,7 @@ def decode_text():
     image_name = input("Enter the path of the image to be decode (with extension) :")
     image = cv2.imread(image_name)  # read the image using cv2.imread()
 
-    resized_image = cv2.resize(image, (500, 500))  # resize the original image as per your requirement
+    # resized_image = cv2.resize(image, (500, 500))  # resize the original image as per your requirement
 
 
     text = present_data(image)
